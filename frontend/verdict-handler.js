@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: "empty message" }), { status: 400, headers: cors });
   }
 
-  const model = MODEL_REPO || "kitty1901/scam-radar-0.6b";
+  const model = MODEL_REPO || "kitty1901/trapcheck-0.6b";
   const upstream = await fetch("https://router.huggingface.co/v1/chat/completions", {
     method: "POST",
     headers: {

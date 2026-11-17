@@ -1,4 +1,4 @@
-// scam-lab frontend: paste message → /api/verdict (Cloudflare Worker → HF
+// trapcheck frontend: paste message → /api/verdict (Cloudflare Worker → HF
 // Inference) → verdict card. No keys in the browser, no Space needed.
 
 const $ = (id) => document.getElementById(id);

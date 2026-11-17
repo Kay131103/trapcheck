@@ -1,4 +1,4 @@
-// scam-lab worker: static frontend + /api/verdict proxy to HF Inference.
+// trapcheck worker: static frontend + /api/verdict proxy to HF Inference.
 // The browser never sees the HF token; it lives in this Worker's secrets.
 
 import { onRequestPost } from "./verdict-handler.js";

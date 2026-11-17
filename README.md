@@ -1,4 +1,4 @@
-# 🛡 scam-lab — a scam radar for the UPI era
+# 🛡 TrapCheck — a scam radar for the UPI era
 
 **Paste a message → risk score, scam category, red-flag phrases highlighted, and
 what to do.** Fine-tuned on the India-specific scam playbook: fake KYC expiry,
