@@ -1,20 +1,7 @@
-// scam-lab frontend: paste message → gradio Space API → verdict card.
-// No API keys: the free HF Space is the server. Space URL stored locally.
+// scam-lab frontend: paste message → /api/verdict (Cloudflare Worker → HF
+// Inference) → verdict card. No keys in the browser, no Space needed.
 
 const $ = (id) => document.getElementById(id);
-const spaceInput = $("space");
-const SPACE_KEY = "scam-lab.space";
-spaceInput.value = localStorage.getItem(SPACE_KEY) ?? "";
-spaceInput.addEventListener("change", () => localStorage.setItem(SPACE_KEY, spaceInput.value.trim()));
-
-function spaceUrl() {
-  let url = spaceInput.value.trim().replace(/\/+$/, "");
-  if (!url) throw new Error("Set your HF Space URL at the top of the page first.");
-  if (url.includes("huggingface.co/spaces/")) {
-    url = "https://" + url.split("huggingface.co/spaces/")[1].replace("/", "-") + ".hf.space";
-  }
-  return url;
-}
 
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
