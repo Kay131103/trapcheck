@@ -1,0 +1,39 @@
+name: Rename model to trapcheck-0.6b
+
+# The Kaggle kernel pushes the trained model as `scam-radar-0.6b`; this
+# workflow renames it to `trapcheck-0.6b` as soon as it appears. Runs every
+# 10 minutes; becomes a no-op once the rename is done (kept for safety).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: rename-model
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q huggingface_hub
+      - name: Rename when the model appears
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          from huggingface_hub import HfApi
+          api = HfApi(token="${{ secrets.HF_TOKEN }}")
+          OLD, NEW = "kitty1901/scam-radar-0.6b", "kitty1901/trapcheck-0.6b"
+          names = {m.id for m in api.list_models(author="kitty1901")}
+          if NEW in names:
+              print("already renamed — nothing to do")
+          elif OLD in names:
+              api.move_repo(from_id=OLD, to_id=NEW, repo_type="model")
+              print(f"renamed {OLD} → {NEW}")
+          else:
+              print("model not on HF yet; retrying in 10 minutes")
+          PY

@@ -41,27 +41,38 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: "empty message" }), { status: 400, headers: cors });
   }
 
-  const model = MODEL_REPO || "kitty1901/trapcheck-0.6b";
-  const upstream = await fetch("https://router.huggingface.co/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${HF_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: message },
-      ],
-      max_tokens: 200,
-      temperature: 0,
-    }),
-  });
+  const MODELS = ["kitty1901/trapcheck-0.6b", "kitty1901/scam-radar-0.6b"];
+  let upstream = null;
+  let lastError = "";
+  for (const model of MODELS) {
+    const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: message },
+        ],
+        max_tokens: 200,
+        temperature: 0,
+      }),
+    });
+    if (res.ok) {
+      upstream = res;
+      break;
+    }
+    lastError = `${model}: ${res.status}`;
+    // 404 = model not (yet) available under this name — try the next one
+    if (res.status !== 404) break;
+  }
 
-  if (!upstream.ok) {
-    const detail = await upstream.text();
-    return new Response(JSON.stringify({ error: `HF inference ${upstream.status}`, detail: detail.slice(0, 300) }), {
+  if (!upstream || !upstream.ok) {
+    const detail = upstream ? await upstream.text() : lastError;
+    return new Response(JSON.stringify({ error: `HF inference failed (${lastError})`, detail: detail.slice(0, 300) }), {
       status: 502, headers: cors,
     });
   }
