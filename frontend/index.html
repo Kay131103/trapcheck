@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>scam-lab — check that message before you tap</title>
+    <meta name="description" content="Paste a suspicious SMS or WhatsApp message and get a risk score, scam category, and highlighted red flags. India/UPI-specific, Hinglish-aware. Fine-tuned 0.6B model, free to use." />
+    <style>
+      :root { --bg:#0b0f14; --panel:#11161d; --line:#1e2732; --text:#e6edf3; --muted:#8b98a5; --accent:#34d399; --bad:#f87171; --warn:#fbbf24; }
+      * { box-sizing: border-box; }
+      body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; line-height:1.55; }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 30px 16px 60px; }
+      h1 { font-size: 1.6rem; margin: 0 0 4px; } h1 span { color: var(--accent); }
+      .sub { color: var(--muted); font-size: .9rem; margin-bottom: 18px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+      textarea { width: 100%; min-height: 110px; background:#0d1319; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:12px; font-family:"IBM Plex Mono",monospace; font-size:.84rem; resize:vertical; }
+      textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+      .cfg { display:flex; gap:8px; margin-bottom:10px; }
+      .cfg input { flex:1; background:#0d1319; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 11px; font-family:"IBM Plex Mono",monospace; font-size:.76rem; }
+      .row { display:flex; gap:8px; margin-top:10px; }
+      button { background: var(--accent); color:#06281c; border:0; border-radius:999px; padding:9px 22px; font-weight:700; cursor:pointer; }
+      button:disabled { opacity:.45; cursor:not-allowed; }
+      button.ghost { background:#182130; color:var(--text); border:1px solid var(--line); font-size:.72rem; padding:5px 10px; font-weight:500; }
+      #verdict { margin-top:14px; }
+      .meter { height:10px; background:#0d1319; border:1px solid var(--line); border-radius:999px; overflow:hidden; }
+      .meter > div { height:100%; background: var(--accent); transition: width .4s; }
+      .lv { font-weight:800; font-size:1.1rem; margin: 8px 0 2px; }
+      .cat, .act { font-size:.85rem; color:var(--muted); }
+      .act b { color: var(--text); }
+      .flags { margin-top:10px; font-family:"IBM Plex Mono",monospace; font-size:.76rem; background:#0d1319; border:1px dashed var(--line); border-radius:8px; padding:10px; white-space:pre-wrap; }
+      .examples { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+      .ex-label { color: var(--muted); font-size:.7rem; margin-right:4px; align-self:center; }
+      .foot { color:var(--muted); font-size:.72rem; margin-top:14px; }
+      .foot a { color: var(--accent); }
+      .safe { color: var(--accent); } .scam { color: var(--bad); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>🛡 scam<span>.lab</span></h1>
+      <p class="sub">Got a suspicious SMS or WhatsApp forward? Paste it. Get a risk score, the scam pattern it matches, and the exact phrases that give it away — <b>before</b> you tap that link. India/UPI-specific, Hinglish-aware, powered by a 0.6B model trained on a free Colab T4.</p>
+      <div class="panel">
+        <div class="cfg"><input id="space" placeholder="HF Space URL, e.g. https://yourname-scam-lab.hf.space" /></div>
+        <textarea id="msg" placeholder="Paste the suspicious message here…"></textarea>
+        <div class="row">
+          <button id="go">Check message</button>
+          <button class="ghost" id="clear">Clear</button>
+        </div>
+        <div class="examples">
+          <span class="ex-label">try:</span>
+          <button class="ghost" data-q="Dear customer your SBI KYC will expire today. Click sbi-kyc-update[.]site to update else account blocked permanently">bank KYC</button>
+          <button class="ghost" data-q="This is Mumbai cyber police. Your number is linked to money laundering case. Digital arrest order issued. Pay Rs 50,000 security deposit immediately via UPI">digital arrest</button>
+          <button class="ghost" data-q="Aapka Paytm KYC aaj raat 12 baje tak update nahi hua toh wallet block ho jayega. Link: paytm-kyc[.]xyz">Hinglish KYC</button>
+          <button class="ghost" data-q="Dear customer, OTP 483921 for Rs 1,250 spent on Flipkart via HDFC card xx8821. NOT share with anyone -HDFC Bank">genuine OTP</button>
+        </div>
+        <div id="verdict"></div>
+        <p class="foot">Model + evals on <a href="https://huggingface.co/" id="hfLink">Hugging Face</a> · runs on free CPU, may take a few seconds to wake. Output is advice, not a guarantee — when in doubt, call 1930 (cyber helpline).</p>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
