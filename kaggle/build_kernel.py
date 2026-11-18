@@ -72,6 +72,20 @@ def find_model_dir():
 CACHE = find_model_dir()
 print(f"base model from: {CACHE}", flush=True)
 
+# ---- 0b · torchao compatibility: the Kaggle image ships torchao 0.10 but
+# transformers 5.x requires >=0.16 (crashed v5 at the LoRA model load).
+# Internet works on verified accounts; upgrade unconditionally, quietly.
+import subprocess as _sp
+_sp.run([sys.executable, "-m", "pip", "install", "-q", "-U", "torchao"], check=False)
+
+# ---- 0c · training corpus: reuse the augmented corpus from the attached
+# dataset when present (saves the ~65-minute augmentation pass), else
+# augment from seeds as before.
+_aug_cache = glob.glob("/kaggle/input/trapcheck-corpus/corpus.json")
+AUGMENTED = json.load(open(_aug_cache[0])) if _aug_cache else None
+if AUGMENTED:
+    print(f"corpus loaded from dataset: {len(AUGMENTED)} examples (augmentation skipped)", flush=True)
+
 # ---- 0 · seeds (hand-curated taxonomy from src/seeds.jsonl) ----
 SEEDS = @@SEEDS@@
 print(f"{len(SEEDS)} seed messages:",
@@ -115,26 +129,30 @@ def generate_variants(text, n, rounds=6):
                 return out_all
     return out_all
 
-# ---- 2 · augment ----
-corpus = list(SEEDS)
-by_kind = {}
-for s in SEEDS:
-    by_kind.setdefault((s["label"], s["scam_type"]), []).append(s)
+# ---- 2 · augment (skipped entirely when the cached corpus is attached) ----
+if AUGMENTED:
+    corpus = AUGMENTED
+    print("augmentation skipped — using cached corpus", flush=True)
+else:
+    corpus = list(SEEDS)
+    by_kind = {}
+    for s in SEEDS:
+        by_kind.setdefault((s["label"], s["scam_type"]), []).append(s)
 
-t0 = time.time()
-for (label, stype), group in sorted(by_kind.items()):
-    need = TARGET_SCAM_PER_FAMILY if label == "scam" else TARGET_BENIGN_TOTAL // max(1, len(group))
-    per_seed = max(1, need // len(group))
-    for s in group:
-        corpus.append(s)
-        vs = generate_variants(s["text"], per_seed - 1)
-        corpus += [{**s, "text": v, "red_flags": []} for v in vs]
-    got = sum(1 for c in corpus if (c["label"], c["scam_type"]) == (label, stype))
-    print(f"{label}/{stype}: {got} examples  ({time.time()-t0:.0f}s elapsed)", flush=True)
+    t0 = time.time()
+    for (label, stype), group in sorted(by_kind.items()):
+        need = TARGET_SCAM_PER_FAMILY if label == "scam" else TARGET_BENIGN_TOTAL // max(1, len(group))
+        per_seed = max(1, need // len(group))
+        for s in group:
+            corpus.append(s)
+            vs = generate_variants(s["text"], per_seed - 1)
+            corpus += [{**s, "text": v, "red_flags": []} for v in vs]
+        got = sum(1 for c in corpus if (c["label"], c["scam_type"]) == (label, stype))
+        print(f"{label}/{stype}: {got} examples  ({time.time()-t0:.0f}s elapsed)", flush=True)
 
 random.Random(7).shuffle(corpus)
 json.dump(corpus, open(f"{WORKING}/corpus.json", "w"), ensure_ascii=False)
-print("augmented corpus:", len(corpus))
+print("training corpus:", len(corpus))
 
 # ---- 3 · format: message in -> JSON verdict out; loss on verdict only ----
 def verdict_for(s):
@@ -340,7 +358,7 @@ def build() -> None:
         "is_private": True,
         "enable_gpu": True,
         "enable_internet": True,
-        "dataset_sources": [f"{user}/qwen3-0-6b-base"],
+        "dataset_sources": [f"{user}/qwen3-0-6b-base", f"{user}/trapcheck-corpus"],
         "competition_sources": [],
         "kernel_sources": [],
     }
