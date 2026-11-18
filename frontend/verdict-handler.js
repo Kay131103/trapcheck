@@ -9,6 +9,10 @@ const SYSTEM = (
   + '"red_flags": [<exact phrases from the message>], "action": "<one line>"}'
 );
 
+// Primary inference: our self-hosted Modal endpoint. Public by design (the
+// endpoint is unauthenticated); override with MODAL_BASE env var if it moves.
+const MODAL_DEFAULT = "https://kay131103--trapcheck-serve.us-east.modal.run";
+
 const jsonRe = /\{[\s\S]*\}/;
 
 function extractVerdict(text) {
@@ -27,9 +31,6 @@ export async function onRequestPost(context) {
     "Access-Control-Allow-Origin": "*",
     "Content-Type": "application/json",
   };
-  if (!HF_TOKEN) {
-    return new Response(JSON.stringify({ error: "HF_TOKEN not set in Pages env vars" }), { status: 500, headers: cors });
-  }
   let message = "";
   try {
     const body = await context.request.json();
@@ -46,9 +47,10 @@ export async function onRequestPost(context) {
   let lastError = "";
 
   // 1 · primary: self-hosted Modal endpoint (our trained model, served by us)
-  if (MODAL_BASE) {
+  const modalBase = MODAL_BASE || MODAL_DEFAULT;
+  if (modalBase) {
     try {
-      const res = await fetch(`${MODAL_BASE}/verdict`, {
+      const res = await fetch(`${modalBase}/verdict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
@@ -65,7 +67,12 @@ export async function onRequestPost(context) {
     }
   }
 
-  // 2 · fallback: HF serverless inference (works if the model is ever catalogued)
+  // 2 · fallback: HF serverless inference (requires HF_TOKEN; rarely needed)
+  if (!HF_TOKEN) {
+    return new Response(JSON.stringify({ error: "modal inference unavailable and HF_TOKEN not set for fallback", detail: lastError }), {
+      status: 502, headers: cors,
+    });
+  }
   for (const model of MODELS) {
     const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
       method: "POST",
