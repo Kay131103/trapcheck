@@ -39,6 +39,11 @@ KERNEL_SOURCE = r'''
 
 import json, os, random, re, shutil, socket, sys, time
 
+# single GPU + fragmentation-resistant allocator (must be set before torch import;
+# Kaggle T4x2 sessions otherwise get DataParallel-wrapped and OOM on the 152k vocab)
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 try:
     import peft  # noqa: F401  (Kaggle GPU images usually ship it)
 except ImportError:
@@ -195,6 +200,7 @@ model.config.use_cache = False
 model = get_peft_model(model, LoraConfig(
     r=LORA_R, lora_alpha=LORA_ALPHA, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM",
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]))
+model.gradient_checkpointing_enable()  # trades a little speed for big activation-memory savings
 model.print_trainable_parameters()
 
 # ---- 5 · train ----
@@ -211,7 +217,7 @@ def collate(batch):
 # args adaptively so any version works (unsupported kwargs get dropped).
 ta_kwargs = {
     "output_dir": f"{WORKING}/runs", "num_train_epochs": EPOCHS,
-    "per_device_train_batch_size": 16, "gradient_accumulation_steps": 1,
+    "per_device_train_batch_size": 4, "gradient_accumulation_steps": 4,
     "learning_rate": LR, "lr_scheduler_type": "cosine", "warmup_ratio": 0.03,
     "fp16": True, "logging_steps": 20, "save_strategy": "no",
     "report_to": [], "remove_unused_columns": False,
