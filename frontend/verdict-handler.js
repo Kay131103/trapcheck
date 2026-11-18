@@ -22,7 +22,7 @@ function extractVerdict(text) {
 }
 
 export async function onRequestPost(context) {
-  const { HF_TOKEN, MODEL_REPO } = context.env;
+  const { HF_TOKEN, MODEL_REPO, MODAL_BASE } = context.env;
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Content-Type": "application/json",
@@ -46,9 +46,9 @@ export async function onRequestPost(context) {
   let lastError = "";
 
   // 1 · primary: self-hosted Modal endpoint (our trained model, served by us)
-  if (env.MODAL_BASE) {
+  if (MODAL_BASE) {
     try {
-      const res = await fetch(`${env.MODAL_BASE}/verdict`, {
+      const res = await fetch(`${MODAL_BASE}/verdict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
