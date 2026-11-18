@@ -73,10 +73,16 @@ CACHE = find_model_dir()
 print(f"base model from: {CACHE}", flush=True)
 
 # ---- 0b · torchao compatibility: the Kaggle image ships torchao 0.10 but
-# transformers 5.x requires >=0.16 (crashed v5 at the LoRA model load).
-# Internet works on verified accounts; upgrade unconditionally, quietly.
+# transformers 5.x requires >=0.16. The matching wheel ships in the attached
+# builddeps dataset — installing from it is instant (no network, no build).
 import subprocess as _sp
-_sp.run([sys.executable, "-m", "pip", "install", "-q", "-U", "torchao"], check=False)
+_wheel = glob.glob("/kaggle/input/trapcheck-builddeps/torchao*.whl")
+if _wheel:
+    _sp.run([sys.executable, "-m", "pip", "install", "-q", "--no-index",
+             "--find-links", "/kaggle/input/trapcheck-builddeps",
+             "--no-deps", "--upgrade", "torchao"], check=False)
+else:
+    _sp.run([sys.executable, "-m", "pip", "install", "-q", "-U", "torchao"], check=False)
 
 # ---- 0c · training corpus: reuse the augmented corpus from the attached
 # dataset when present (saves the ~65-minute augmentation pass), else
@@ -201,11 +207,36 @@ def collate(batch):
             "labels": torch.tensor([b["labels"] + [-100] * (m - len(b["labels"])) for b in batch]),
             "attention_mask": torch.tensor([[1] * len(b["input_ids"]) + [0] * (m - len(b["input_ids"])) for b in batch])}
 
-args = TrainingArguments(output_dir=f"{WORKING}/runs", num_train_epochs=EPOCHS,
-    per_device_train_batch_size=16, gradient_accumulation_steps=1, learning_rate=LR,
-    lr_scheduler_type="cosine", warmup_ratio=0.03, fp16=True, logging_steps=20,
-    save_strategy="no", report_to=[], remove_unused_columns=False)
-Trainer(model=model, args=args, train_dataset=examples, data_collator=collate).train()
+# transformers 5.x renamed/removed some TrainingArguments kwargs; build the
+# args adaptively so any version works (unsupported kwargs get dropped).
+ta_kwargs = {
+    "output_dir": f"{WORKING}/runs", "num_train_epochs": EPOCHS,
+    "per_device_train_batch_size": 16, "gradient_accumulation_steps": 1,
+    "learning_rate": LR, "lr_scheduler_type": "cosine", "warmup_ratio": 0.03,
+    "fp16": True, "logging_steps": 20, "save_strategy": "no",
+    "report_to": [], "remove_unused_columns": False,
+}
+while True:
+    try:
+        args = TrainingArguments(**ta_kwargs)
+        break
+    except TypeError as _te:
+        import re as _re
+        _m = _re.search(r"unexpected keyword argument ['\"](\w+)", str(_te))
+        if not _m:
+            raise
+        _bad = _m.group(1)
+        print(f"TrainingArguments: dropping unsupported kwarg '{_bad}'", flush=True)
+        ta_kwargs.pop(_bad, None)
+
+trainer = None
+try:
+    trainer = Trainer(model=model, args=args, train_dataset=examples, data_collator=collate)
+except Exception as _te:
+    print(f"Trainer(list dataset) failed ({type(_te).__name__}) — converting to Dataset", flush=True)
+    from datasets import Dataset as _DS
+    trainer = Trainer(model=model, args=args, train_dataset=_DS.from_list(examples), data_collator=collate)
+trainer.train()
 
 # ---- 6 · evaluate on the real (non-augmented) seed messages ----
 def extract_verdict(t):
@@ -358,7 +389,7 @@ def build() -> None:
         "is_private": True,
         "enable_gpu": True,
         "enable_internet": True,
-        "dataset_sources": [f"{user}/qwen3-0-6b-base", f"{user}/trapcheck-corpus"],
+        "dataset_sources": [f"{user}/qwen3-0-6b-base", f"{user}/trapcheck-corpus", f"{user}/trapcheck-builddeps"],
         "competition_sources": [],
         "kernel_sources": [],
     }
