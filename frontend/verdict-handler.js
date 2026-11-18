@@ -44,6 +44,28 @@ export async function onRequestPost(context) {
   const MODELS = ["kitty1901/trapcheck-0.6b", "kitty1901/scam-radar-0.6b"];
   let upstream = null;
   let lastError = "";
+
+  // 1 · primary: self-hosted Modal endpoint (our trained model, served by us)
+  if (env.MODAL_BASE) {
+    try {
+      const res = await fetch(`${env.MODAL_BASE}/verdict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (res.ok) {
+        const v = await res.json();
+        if (!v.error) return new Response(JSON.stringify(v), { headers: cors });
+        lastError = `modal: ${v.error}`;
+      } else {
+        lastError = `modal: ${res.status}`;
+      }
+    } catch (e) {
+      lastError = `modal: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+
+  // 2 · fallback: HF serverless inference (works if the model is ever catalogued)
   for (const model of MODELS) {
     const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
       method: "POST",
