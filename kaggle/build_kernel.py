@@ -395,7 +395,10 @@ def build() -> None:
         "is_private": True,
         "enable_gpu": True,
         "enable_internet": True,
-        "dataset_sources": [f"{user}/qwen3-0-6b-base", f"{user}/trapcheck-corpus", f"{user}/trapcheck-builddeps"],
+        "dataset_sources": [
+            f"{user}/qwen3-0-6b-base", f"{user}/trapcheck-corpus",
+            f"{user}/trapcheck-builddeps", f"{user}/hf-credentials",
+        ],
         "competition_sources": [],
         "kernel_sources": [],
     }

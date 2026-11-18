@@ -10,7 +10,8 @@
   "dataset_sources": [
     "kaay1901/qwen3-0-6b-base",
     "kaay1901/trapcheck-corpus",
-    "kaay1901/trapcheck-builddeps"
+    "kaay1901/trapcheck-builddeps",
+    "kaay1901/hf-credentials"
   ],
   "competition_sources": [],
   "kernel_sources": []
